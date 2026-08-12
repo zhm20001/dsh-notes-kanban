@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*~
+
+# 环境变量 / 密钥
+# 注意：项目名等非敏感配置放 project.config.json（需提交），敏感信息才放 .env
+.env
+.env.local
+.env.*.local

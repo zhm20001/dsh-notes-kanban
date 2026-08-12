@@ -1,0 +1,4 @@
+{
+  "$comment": "项目配置中心。project_name 当前是占位名，grill 确定核心后会在此改名。改名只改这一处，所有脚本一律从此读取，禁止把名字硬编码进代码。",
+  "project_name": "mytool"
+}
