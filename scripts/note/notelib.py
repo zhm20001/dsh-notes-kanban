@@ -11,8 +11,10 @@ from __future__ import annotations
 import datetime as dt
 import os
 import secrets
+import sys
 import tempfile
 from pathlib import Path
+from typing import Iterator
 
 import yaml
 
@@ -139,6 +141,35 @@ def atomic_copy(src: Path, dst: Path) -> None:
     atomic_write(dst, src.read_text(encoding="utf-8"))
 
 
+def read_text_source(
+    *,
+    literal: str | None,
+    file_path: str | None,
+    from_stdin: bool,
+    what: str,
+) -> str:
+    """Read a text blob from one of three mutually-exclusive sources.
+
+    Several hard-scripts share this input shape (save_note's body, find_candidates'
+    material): a literal string, a file path, or stdin. ``what`` names the thing
+    being read for the error message (e.g. "body", "material"). Raises
+    ``SystemExit`` if none of the sources is given or the text is empty.
+    """
+    if from_stdin:
+        text = sys.stdin.read()
+    elif file_path is not None:
+        text = Path(file_path).read_text(encoding="utf-8")
+    elif literal is not None:
+        text = literal
+    else:
+        raise SystemExit(
+            f"error: {what} is required (use --{what}, --{what}-file, or --{what}-stdin)"
+        )
+    if not text.strip():
+        raise SystemExit(f"error: {what} is empty")
+    return text
+
+
 def safe_resolve(notes_dir: Path, note_id: str) -> Path:
     """Resolve ``notes_dir / note_id`` and refuse to escape ``notes_dir``.
 
@@ -148,3 +179,136 @@ def safe_resolve(notes_dir: Path, note_id: str) -> Path:
     if not candidate.is_relative_to(notes_dir.resolve()):
         raise ValueError(f"id escapes notes-dir: {note_id!r}")
     return candidate
+
+
+# --- retrieval (keyword search, v1 — deterministic) --------------------------
+#
+# Per ADR-0003 / spec 0001: retrieval is a *hard-script*, not the LLM's job.
+# find_candidates turns raw material into a deterministic ranked candidate list
+# (title/tag/body keyword weighting). Semantic embedding search is a deferred
+# upgrade; v1 is keyword recall so the skeleton never drifts.
+
+#: Per-field keyword weights. Title is the strongest signal a note is "about" a
+#: topic, then explicit tags, then body mentions.
+SCORE_TITLE = 5
+SCORE_TAG = 3
+SCORE_BODY = 1
+#: Body mentions are capped per keyword so one repetitive note can't dominate.
+SCORE_BODY_CAP = 3
+
+#: Words too common to discriminate notes. Kept tiny and ASCII-only on purpose
+#: — CJK has no equivalent "stopword" problem at the run level.
+_STOPWORDS = frozenset({
+    "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of",
+    "to", "in", "on", "at", "by", "with", "from", "as", "is", "are", "was",
+    "were", "be", "been", "being", "this", "that", "these", "those", "it",
+    "its", "they", "them", "their", "we", "you", "your", "our", "his", "her",
+    "not", "no", "can", "will", "would", "could", "should", "about", "into",
+    "than", "too", "very", "just", "also", "have", "has", "had", "do", "does",
+    "did", "what", "which", "who", "how", "when", "where", "why", "there",
+    "here", "out", "up", "down", "over", "all", "any", "some", "more", "most",
+})
+
+
+def _is_cjk(ch: str) -> bool:
+    """True for CJK ideographs (Unified + Extension A). Used for keyword runs."""
+    cp = ord(ch)
+    return 0x3400 <= cp <= 0x9FFF
+
+
+def extract_keywords(text: str) -> list[str]:
+    """Extract deterministic search keywords from ``text``.
+
+    - ASCII: alphanumeric runs of length >= 3, lowercased, stopwords dropped.
+    - CJK: all bigrams (consecutive 2-char substrings) of each ideograph run.
+      CJK has no spaces, so a whole sentence is one run and useless as a single
+      keyword; bigrams are the standard segmenter-free way to get useful recall
+      (a dictionary/segmenter is a deferred upgrade). Single CJK chars are too
+      noisy and are dropped.
+
+    Returns distinct keywords sorted alphabetically — order never affects
+    scoring, but a stable return keeps everything reproducible.
+    """
+    found: set[str] = set()
+    ascii_run: list[str] = []
+    cjk_run: list[str] = []
+
+    def flush_ascii() -> None:
+        if ascii_run:
+            tok = "".join(ascii_run).lower()
+            if len(tok) >= 3 and tok not in _STOPWORDS:
+                found.add(tok)
+            ascii_run.clear()
+
+    def flush_cjk() -> None:
+        if len(cjk_run) >= 2:
+            for i in range(len(cjk_run) - 1):
+                found.add("".join(cjk_run[i : i + 2]))
+        cjk_run.clear()
+
+    for ch in text:
+        if ch.isascii() and ch.isalnum():
+            if cjk_run:
+                flush_cjk()
+            ascii_run.append(ch)
+        elif _is_cjk(ch):
+            if ascii_run:
+                flush_ascii()
+            cjk_run.append(ch)
+        else:
+            flush_ascii()
+            flush_cjk()
+    flush_ascii()
+    flush_cjk()
+    return sorted(found)
+
+
+def score_note(keywords: list[str], front_matter: dict, body: str) -> int:
+    """Deterministic relevance score of a note for ``keywords``.
+
+    Substring match (lowercased) per keyword: title hit → ``SCORE_TITLE``,
+    any tag hit → ``SCORE_TAG``, body mentions → ``SCORE_BODY`` each, capped at
+    ``SCORE_BODY_CAP`` per keyword. Substring (not word-boundary) matching is a
+    deliberate v1 choice — it gives useful stem recall (``react`` matches
+    ``reactivity``) without a stemmer; embedding search is the upgrade path.
+    """
+    if not keywords:
+        return 0
+    title_l = str(front_matter.get("title", "")).lower()
+    tags_l = [str(t).lower() for t in front_matter.get("tags", []) or []]
+    body_l = body.lower()
+    score = 0
+    for kw in keywords:
+        if kw in title_l:
+            score += SCORE_TITLE
+        if any(kw in t for t in tags_l):
+            score += SCORE_TAG
+        hits = body_l.count(kw)
+        if hits:
+            score += min(hits, SCORE_BODY_CAP) * SCORE_BODY
+    return score
+
+
+def snippet(body: str, width: int = 160) -> str:
+    """A one-line preview of ``body`` for candidate lists (whitespace-collapsed)."""
+    s = " ".join(body.split())
+    return s[:width]
+
+
+def iter_notes(notes_dir: Path) -> Iterator[tuple[Path, dict, str]]:
+    """Yield ``(path, front_matter, body)`` for each note file in ``notes_dir``.
+
+    A note file is any ``*.md`` (``.bak`` and other suffixes are excluded by
+    construction). Non-note or malformed ``.md`` files are skipped rather than
+    aborting a search — retrieval must stay robust to a stray file. Malformed
+    covers both a missing/closed front-matter fence (``ValueError``) and
+    unparseable YAML (``yaml.YAMLError`` — not a ``ValueError`` subclass).
+    """
+    for path in sorted(notes_dir.iterdir()):
+        if not path.is_file() or path.suffix != ".md" or path.name.endswith(BAK_SUFFIX):
+            continue
+        try:
+            front_matter, body = parse_note_text(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError, yaml.YAMLError):
+            continue
+        yield path, front_matter, body

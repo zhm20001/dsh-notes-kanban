@@ -34,16 +34,6 @@ def _parse_tags(raw: str) -> list[str]:
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
-def _read_body(args: argparse.Namespace) -> str:
-    if args.body_stdin:
-        return sys.stdin.read()
-    if args.body_file is not None:
-        return Path(args.body_file).read_text(encoding="utf-8")
-    if args.body is not None:
-        return args.body
-    raise SystemExit("error: body is required (use --body, --body-file, or --body-stdin)")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Atomically write a note (hard-script).")
     parser.add_argument("--notes-dir", required=True, help="path to the note folder")
@@ -68,9 +58,9 @@ def main() -> int:
     notes_dir = Path(args.notes_dir)
     notes_dir.mkdir(parents=True, exist_ok=True)
 
-    body = _read_body(args)
-    if not body.strip():
-        raise SystemExit("error: body is empty")
+    body = notelib.read_text_source(
+        literal=args.body, file_path=args.body_file, from_stdin=args.body_stdin, what="body"
+    )
 
     front_matter: dict = {
         "title": args.title,

@@ -5,6 +5,7 @@ state of a temp note folder — per spec 0001's testing decision: "只测外部
 行为（文件夹状态），不测实现细节".
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -72,3 +73,60 @@ def read_note():
         return _run(SCRIPTS / "read_note.py", args, **kw)
 
     return f
+
+
+@pytest.fixture
+def find_candidates():
+    def f(args: list[str], **kw) -> subprocess.CompletedProcess:
+        return _run(SCRIPTS / "find_candidates.py", args, **kw)
+
+    return f
+
+
+@pytest.fixture
+def make_note(save_note):
+    """Create a note via the save_note script and return its id.
+
+    Shared by tests that just need an existing note to work against, so the
+    "save then parse id" shape isn't re-inlined in every file.
+    """
+
+    def f(notes_dir, *, title="Readable", body="the body text", tags=None, status=None):
+        args = ["--notes-dir", str(notes_dir), "--title", title, "--body", body]
+        if tags is not None:
+            args += ["--tags", tags]
+        if status is not None:
+            args += ["--status", status]
+        res = save_note(args)
+        assert res.returncode == 0, res.stderr
+        return json.loads(res.stdout)["id"]
+
+    return f
+
+
+def _write_note(
+    folder: Path,
+    name: str,
+    *,
+    title: str = "Untitled",
+    tags: list[str] | None = None,
+    status: str = "spark",
+    updated_at: str = "2026-01-01T00:00:00Z",
+    body: str = "",
+) -> Path:
+    """Write a raw note file with a controlled front-matter (folder-state helper).
+
+    Used where a test needs deterministic ``updated_at`` ordering — save_note
+    always stamps ``now``, so we set folder state directly instead. Asserting
+    on crafted file content *is* asserting on folder state (the seam).
+    """
+    fm = {"title": title, "tags": tags or [], "status": status, "updated_at": updated_at}
+    yaml_text = yaml.safe_dump(fm, allow_unicode=True, sort_keys=False, default_flow_style=False)
+    path = folder / name
+    path.write_text(f"---\n{yaml_text}---\n{body}", encoding="utf-8")
+    return path
+
+
+@pytest.fixture
+def write_note():
+    return _write_note
