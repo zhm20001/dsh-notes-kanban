@@ -92,6 +92,14 @@ def list_recent():
 
 
 @pytest.fixture
+def restore_note():
+    def f(args: list[str], **kw) -> subprocess.CompletedProcess:
+        return _run(SCRIPTS / "restore_note.py", args, **kw)
+
+    return f
+
+
+@pytest.fixture
 def make_note(save_note):
     """Create a note via the save_note script and return its id.
 

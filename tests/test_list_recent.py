@@ -202,3 +202,59 @@ def test_undated_note_is_included_not_skipped(list_recent, notes_dir, write_note
     undated = ranked[-1]
     assert undated["age_days"] is None
     assert undated["stale"] is True
+
+
+# --- --status filter (ticket 04: recent-view distinguishes in-progress vs done) ---
+
+
+def test_status_filter_shows_only_matching(list_recent, notes_dir, write_note):
+    write_note(notes_dir, "a.md", title="A", status="active", updated_at="2026-08-01T00:00:00Z")
+    write_note(notes_dir, "d.md", title="D", status="done", updated_at="2026-08-02T00:00:00Z")
+    res = list_recent(["--notes-dir", str(notes_dir), "--status", "active"])
+    assert res.returncode == 0, res.stderr
+    assert [n["id"] for n in json.loads(res.stdout)] == ["a.md"]
+
+
+def test_status_filter_accepts_multiple_values(list_recent, notes_dir, write_note):
+    write_note(notes_dir, "a.md", title="A", status="spark", updated_at="2026-08-01T00:00:00Z")
+    write_note(notes_dir, "b.md", title="B", status="active", updated_at="2026-08-02T00:00:00Z")
+    write_note(notes_dir, "d.md", title="D", status="done", updated_at="2026-08-03T00:00:00Z")
+    res = list_recent(["--notes-dir", str(notes_dir), "--status", "spark,active"])
+    assert res.returncode == 0, res.stderr
+    ranked = json.loads(res.stdout)
+    assert [n["id"] for n in ranked] == ["b.md", "a.md"]  # filtered, then sorted by updated_at desc
+
+
+def test_status_filter_no_matches_returns_empty(list_recent, notes_dir, write_note):
+    write_note(notes_dir, "a.md", title="A", status="active", updated_at="2026-08-01T00:00:00Z")
+    res = list_recent(["--notes-dir", str(notes_dir), "--status", "done"])
+    assert res.returncode == 0, res.stderr
+    assert json.loads(res.stdout) == []
+
+
+def test_status_filter_invalid_value_fails(list_recent, notes_dir):
+    res = list_recent(["--notes-dir", str(notes_dir), "--status", "bogus"])
+    assert res.returncode != 0
+    assert res.stdout.strip() == ""
+
+
+def test_status_filter_combines_with_limit(list_recent, notes_dir, write_note):
+    for i in range(5):
+        write_note(
+            notes_dir, f"n{i}.md", title=f"N{i}", status="active",
+            updated_at=f"2026-0{i + 1}-01T00:00:00Z",
+        )
+    write_note(notes_dir, "done.md", title="Done", status="done", updated_at="2026-12-01T00:00:00Z")
+    res = list_recent(["--notes-dir", str(notes_dir), "--status", "active", "--limit", "2"])
+    assert res.returncode == 0, res.stderr
+    ranked = json.loads(res.stdout)
+    assert len(ranked) == 2
+    assert all(n["status"] == "active" for n in ranked)  # the done note never sneaks in
+
+
+def test_no_status_filter_returns_all(list_recent, notes_dir, write_note):
+    write_note(notes_dir, "a.md", title="A", status="active", updated_at="2026-08-01T00:00:00Z")
+    write_note(notes_dir, "d.md", title="D", status="done", updated_at="2026-08-02T00:00:00Z")
+    res = list_recent(["--notes-dir", str(notes_dir)])
+    assert res.returncode == 0, res.stderr
+    assert len(json.loads(res.stdout)) == 2  # default: no status filtering

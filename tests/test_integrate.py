@@ -127,3 +127,31 @@ def test_merged_note_reads_back_as_single_coherent_document(save_note, read_note
     assert body.count("# Note-taking") == 1
     assert res.stdout.count("---") == 2  # exactly one front-matter block
     assert fm["title"] == "Note-taking"
+
+
+# --- ticket 04: source attribution (the hard-script half) ---
+#
+# US 20 ("整合保留来源归属") is mostly an LLM contract — the agent passes --source
+# on a merge — and that half lives in SKILL.md, validated by real use, not
+# auto-tested (spec 0001 "不测：SKILL.md 本身是指令"). The one deterministic part
+# the scripts own — `--source` landing in front-matter on an update — had no test
+# before, so we pin it here. (Conflict preservation, US 19, is purely a rewrite
+# contract with no hard-script shape to assert, so it stays SKILL.md-only.)
+
+
+def test_merge_carries_source_into_frontmatter(save_note, make_note, notes_dir, parse_note):
+    # the hard-script half of US 20: on a merge, --source lands in front-matter
+    # (the provenance the schema reserves `source` for). The agent's judgement of
+    # *whether/what* to pass is the untestable soft half.
+    note_id = make_note(notes_dir, title="React notes", body="Hooks hold state.")
+    save_note(
+        [
+            "--notes-dir", str(notes_dir),
+            "--title", "React notes",
+            "--id", note_id,
+            "--source", "React docs · hooks intro",
+            "--body", "# React notes\n\nHooks hold state for function components.",
+        ]
+    )
+    fm, _ = parse_note(notes_dir / note_id)
+    assert fm["source"] == "React docs · hooks intro"  # provenance preserved through the merge

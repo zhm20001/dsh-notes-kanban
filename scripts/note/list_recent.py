@@ -61,11 +61,32 @@ def main() -> int:
             f"(default: {notelib.DEFAULT_STALE_DAYS})"
         ),
     )
+    parser.add_argument(
+        "--status",
+        default=None,
+        help=(
+            "only show notes with these lifecycle statuses (comma-separated from "
+            f"{', '.join(notelib.VALID_STATUSES)}); e.g. 'active,spark' for in-progress"
+        ),
+    )
     args = parser.parse_args()
 
     notes_dir = Path(args.notes_dir)
     if not notes_dir.is_dir():
         raise SystemExit(f"error: notes-dir is not a directory: {notes_dir}")
+
+    # optional status filter: validate tokens up front (same strictness as
+    # save_note's choices) so the recent view can split in-progress from done.
+    status_filter: set[str] | None = None
+    if args.status is not None:
+        wanted = [s.strip() for s in args.status.split(",") if s.strip()]
+        bad = [s for s in wanted if s not in notelib.VALID_STATUSES]
+        if bad:
+            raise SystemExit(
+                f"error: invalid status: {', '.join(bad)} "
+                f"(valid: {', '.join(notelib.VALID_STATUSES)})"
+            )
+        status_filter = set(wanted)
 
     now = dt.datetime.now(dt.timezone.utc)
     threshold = dt.timedelta(days=max(0, args.stale_days))
@@ -92,6 +113,11 @@ def main() -> int:
         row["age_days"] = age_days
         row["stale"] = stale
         rows.append(row)
+
+    # optional status filter (applied before sort/limit so --limit counts within
+    # the filtered set, e.g. 'top 3 active notes').
+    if status_filter is not None:
+        rows = [r for r in rows if r["status"] in status_filter]
 
     # deterministic ordering: updated_at desc, then id asc. Done as a stable
     # multi-pass sort (least-significant key first), matching find_candidates'
