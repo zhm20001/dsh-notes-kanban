@@ -84,6 +84,14 @@ def find_candidates():
 
 
 @pytest.fixture
+def list_recent():
+    def f(args: list[str], **kw) -> subprocess.CompletedProcess:
+        return _run(SCRIPTS / "list_recent.py", args, **kw)
+
+    return f
+
+
+@pytest.fixture
 def make_note(save_note):
     """Create a note via the save_note script and return its id.
 

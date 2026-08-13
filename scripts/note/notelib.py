@@ -295,6 +295,25 @@ def snippet(body: str, width: int = 160) -> str:
     return s[:width]
 
 
+def note_summary(path: Path, front_matter: dict, body: str) -> dict:
+    """The fields every note-listing script emits about a note.
+
+    ``find_candidates`` and ``list_recent`` both summarise a note into the same
+    shape (id / path / title / tags / status / updated_at / snippet); each then
+    adds its own ranking keys (``score``, or ``age_days`` + ``stale``).
+    Centralising the shared shape keeps the two listings from drifting apart.
+    """
+    return {
+        "id": path.name,
+        "path": str(path),
+        "title": front_matter.get("title", ""),
+        "tags": front_matter.get("tags", []) or [],
+        "status": front_matter.get("status", ""),
+        "updated_at": front_matter.get("updated_at", ""),
+        "snippet": snippet(body),
+    }
+
+
 def iter_notes(notes_dir: Path) -> Iterator[tuple[Path, dict, str]]:
     """Yield ``(path, front_matter, body)`` for each note file in ``notes_dir``.
 
@@ -312,3 +331,31 @@ def iter_notes(notes_dir: Path) -> Iterator[tuple[Path, dict, str]]:
         except (ValueError, OSError, yaml.YAMLError):
             continue
         yield path, front_matter, body
+
+
+# --- recent (list_recent hard-script primitives) ----------------------------
+#
+# Per ADR-0003 / spec 0001: listing recent notes is a *hard-script* — a
+# deterministic, recency-ordered view of the folder with stale (forgotten-risk)
+# marking. The model only renders the result; the ordering and the stale flag
+# are always this code. v1 is "sort by updated_at + mark stale"; smarter
+# curation ("what to focus on") is a deferred upgrade (spec 0001 out-of-scope).
+
+#: A note untouched this many days is flagged stale (forgotten-risk) — guards
+#: long-termism, keeps the folder from becoming a graveyard. Tunable via
+#: ``list_recent --stale-days``.
+DEFAULT_STALE_DAYS = 30
+
+
+def parse_timestamp(value: str) -> dt.datetime:
+    """Parse an ISO8601 timestamp (trailing ``Z`` allowed) into aware UTC.
+
+    Pairs with :func:`now_iso` — round-trips the format ``save_note`` stamps
+    (e.g. ``2026-08-13T19:45:00Z``). A trailing ``Z`` is normalised to
+    ``+00:00`` for ``fromisoformat``; a value with no offset is assumed UTC.
+    Used by ``list_recent`` to order notes chronologically and compute age.
+    """
+    parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed

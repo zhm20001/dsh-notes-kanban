@@ -64,18 +64,7 @@ def main() -> int:
         score = notelib.score_note(keywords, front_matter, body)
         if score <= 0:
             continue
-        candidates.append(
-            {
-                "id": path.name,
-                "path": str(path),
-                "title": front_matter.get("title", ""),
-                "tags": front_matter.get("tags", []) or [],
-                "status": front_matter.get("status", ""),
-                "updated_at": front_matter.get("updated_at", ""),
-                "score": score,
-                "snippet": notelib.snippet(body),
-            }
-        )
+        candidates.append({**notelib.note_summary(path, front_matter, body), "score": score})
 
     # deterministic ordering: score desc, then most-recently-updated desc, then
     # id asc. Done as stable multi-pass sort (least-significant key first);

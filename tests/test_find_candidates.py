@@ -188,3 +188,18 @@ def test_non_md_files_ignored(find_candidates, notes_dir, write_note):
     assert res.returncode == 0, res.stderr
     ranked = json.loads(res.stdout)
     assert [c["id"] for c in ranked] == ["a.md"]
+
+
+def test_keyword_recall_then_load_full_note(find_candidates, read_note, make_note, notes_dir):
+    # ticket 03's "recall any note by keyword → see the full picture (读档)":
+    # find_candidates is the keyword entry point; read_note loads the full body.
+    # This is the read/load half — no new script, just the two hard-scripts in
+    # sequence — kept green as part of the recall path.
+    note_id = make_note(notes_dir, title="Rust ownership", body="borrow checker rules the lifetime")
+    found = json.loads(
+        find_candidates(["--notes-dir", str(notes_dir), "--material", "rust borrow"]).stdout
+    )
+    assert found and found[0]["id"] == note_id
+    loaded = read_note(["--notes-dir", str(notes_dir), "--id", note_id])
+    assert loaded.returncode == 0, loaded.stderr
+    assert "borrow checker" in loaded.stdout

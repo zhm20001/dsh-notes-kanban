@@ -1,15 +1,15 @@
 ---
 name: note-integration
-description: 笔记整合 / 沉淀引擎。用户把原始材料（灵感、学习片段）倒进来时触发——找候选既有笔记、判定并入还是新建；并入时把笔记重写为连贯结构（去重/总结/体系化），不悄悄造重复孤儿。硬脚本负责确定性检索/读写，模型只做整合判断。触发词：存笔记、记下来、存档、读笔记、读档、note、笔记整合、沉淀、整合进笔记。
+description: 笔记整合 / 沉淀引擎。用户把原始材料（灵感、学习片段）倒进来时触发——找候选既有笔记、判定并入还是新建；并入时把笔记重写为连贯结构（去重/总结/体系化），不悄悄造重复孤儿。打开时看到最近在坚持的笔记、标出久未触碰的（遗忘风险）。硬脚本负责确定性检索/读写/列最近，模型只做整合判断。触发词：存笔记、记下来、存档、读笔记、读档、最近笔记、我有哪些笔记、最近在搞什么、note、笔记整合、沉淀、整合进笔记。
 ---
 
 # 笔记整合 skill（沉淀引擎 v1 · 骨架）
 
-> 领域词汇见仓库 `CONTEXT.md`（笔记 / 存档 / 读档 / 整合）。架构见 `docs/adr/0003`（硬脚本骨架 + LLM 判断）、`docs/adr/0004`（Python）。本文件覆盖 ticket 01–02 的循环：**捕获 → 新笔记 → 读回**，以及核心差异点 **整合新材料进既有笔记（去重/总结/体系化），杜绝重复建档**。列最近笔记（`list_recent`）见后续 ticket 03。
+> 领域词汇见仓库 `CONTEXT.md`（笔记 / 存档 / 读档 / 整合）。架构见 `docs/adr/0003`（硬脚本骨架 + LLM 判断）、`docs/adr/0004`（Python）。本文件覆盖 ticket 01–03 的循环：**打开看最近 → 捕获/整合 → 读档**——捕获新材料（新笔记 or 并入既有，去重/总结/体系化，杜绝重复建档），打开时看到最近在坚持的笔记并标出久未触碰的（遗忘风险）。
 
 ## 核心纪律（不能飘）
 
-- **硬脚本 = 骨架（确定性代码）**：`find_candidates`（关键词找候选笔记）、`save_note`（原子写 + 写前 `.bak`）、`read_note`（读回）。**你（模型）只选工具与参数，执行永远是这些脚本**。绝不自己拼文件名、绝不自己写文件、绝不自己 grep 文件夹——这是防 Hermes 式飘的保证。
+- **硬脚本 = 骨架（确定性代码）**：`find_candidates`（关键词找候选笔记）、`save_note`（原子写 + 写前 `.bak`）、`read_note`（读回）、`list_recent`（列最近 + 标遗忘风险）。**你（模型）只选工具与参数，执行永远是这些脚本**。绝不自己拼文件名、绝不自己写文件、绝不自己 grep / `ls` 文件夹——这是防 Hermes 式飘的保证。
 - **你的判断职责（两件，都是 LLM 干的，不是脚本）**：
   1. **结构化**：把原始材料变成 `title / tags / body`（标题点题、标签 3–5 个检索词、正文连贯 markdown）。
   2. **整合**：拿到 `find_candidates` 的候选 + 新材料后，**判定"并入既有 / 新建"**；并入时把笔记**重写为连贯结构（去重 / 总结 / 体系化），不是追加文末**。
@@ -19,7 +19,7 @@ description: 笔记整合 / 沉淀引擎。用户把原始材料（灵感、学�
 ## 配置
 
 - 笔记文件夹：默认仓库下的 `notes/`（可被 host 覆盖）。下文记作 `$NOTES_DIR`。
-- 脚本（仓库下 `scripts/note/`，用 `python3` 跑）：`find_candidates.py`、`save_note.py`、`read_note.py`。
+- 脚本（仓库下 `scripts/note/`，用 `python3` 跑）：`find_candidates.py`、`save_note.py`、`read_note.py`、`list_recent.py`。
 
 ## 流程 A —— 捕获新材料 → 存成新笔记
 
@@ -70,7 +70,7 @@ python3 scripts/note/read_note.py --notes-dir "$NOTES_DIR" --id "<id>"
 
 把返回的 markdown 渲染给用户。需要程序化读笔记（如整合前读取候选全文）时加 `--json`，输出 `{id, front_matter, body}`。
 
-若用户不知道 id，先用流程 C 的 `find_candidates` 按关键词找，或（v1 骨架）直接 `ls "$NOTES_DIR"` 看现有笔记文件名（`list_recent` 列最近见 ticket 03）。
+若用户不知道 id：先跑流程 D 的 `list_recent` 看最近在动的笔记（拿到 id + 哪些久未触碰）；或用流程 C 的 `find_candidates` 按关键词召回某主题的笔记。**别自己 `ls` 文件夹**——列笔记永远是 `list_recent` 的事。
 
 ## 流程 C —— 整合新材料进既有笔记（核心差异点）
 
@@ -122,9 +122,24 @@ python3 scripts/note/read_note.py --notes-dir "$NOTES_DIR" --id "<id>"
 
 > 这几条里，`.bak` 留前版 / `updated_at` 刷新 / front-matter 合法 / `id` 不变 是**硬脚本保证**的（有测试）；"要点在 / 无逐字重复 / 连贯" 是**你的整合判断**（靠真实使用验证，非自动测试）。
 
+## 流程 D —— 打开看最近（护长期主义，防碎片化）
+
+打开工具 / 用户问"最近在搞什么 / 我有哪些笔记 / 哪些该回去碰一下"时：
+
+```sh
+python3 scripts/note/list_recent.py --notes-dir "$NOTES_DIR"
+```
+
+输出一行 JSON 数组，按 `updated_at` 降序（最近在动的在前），每项含 `id / title / tags / status / updated_at / age_days / stale / snippet`。把它**渲染成 markdown 列表**给用户：
+
+- `stale: true` = 久未触碰（默认超 30 天没更新）→ 标"⚠️ 遗忘风险"，提醒用户是否该回去碰一下（防笔记变成坟场、护长期主义）。
+- `age_days` = 距今天数，渲染成"N 天前更新"。
+- `status` 展示生命周期（spark 幼体 / active 进行中 / dormant 沉睡 / done 完成）。
+
+`--limit`（默认 10）控制条数；`--stale-days`（默认 30）调遗忘阈值。v1 是"按更新时间简单排序 + 久未触碰标记"，不做更深的"该聚焦什么"策展（spec 0001 明示延后）。**这是确定性硬脚本**——列笔记永远是它的事，别自己 `ls` / `grep` 文件夹。
+
 ## 还没有的（后续 ticket，别现在做）
 
-- **列最近笔记**（`list_recent`，按 `updated_at`，标久未触碰）→ ticket 03
 - **从 `.bak` 回滚一次坏整合** → ticket 04
-- **矛盾材料标记/保留**（而非静默覆盖）、**来源归属 source**、**状态生命周期流转** → ticket 04（stretch）
+- **矛盾材料标记/保留**（而非静默覆盖）、**来源归属 source**、**状态生命周期流转**（recent-view 据此区分进行中/已完成）→ ticket 04（stretch）
 - **前端 / dashboard** → 用真实日常使用挣来再考虑（spec 0001）
