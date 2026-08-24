@@ -19,3 +19,19 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+
+# Node
+node_modules/
+
+# dsh 构建产物
+dsh/lib/
+
+# Python 测试残留
+.pytest_cache/
+
+# 临时工作区（移植票据、一次性脚本）
+.scratch/
+
+# 笔记内容不入库（私人数据；仅保留目录结构占位）
+notes/*
+!notes/.gitkeep

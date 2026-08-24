@@ -1,0 +1,6 @@
+# mytool-dsh-notes 的正式装载行（dsh plugin add 用；开发循环走 dev.patch.yml 的源码绝对路径）。
+- insert:
+    - id: mytool-notes
+      name: 'mytool-dsh-notes'
+      config:
+        notesDir: /Users/zhm20001/projects/mytool/notes

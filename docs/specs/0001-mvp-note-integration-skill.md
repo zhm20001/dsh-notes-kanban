@@ -48,8 +48,8 @@ feature: note-integration-skill
 
 - **形态**：一个可移植 skill（`SKILL.md` + 若干独立辅助脚本），跑在 Agent-Skills 标准的 agent host（Pi 或 ZCode，两边通用）。无 app、无 server、无 DB。〔ADR-0003〕
 - **硬/软分工（骨架原则）**：确定性辅助脚本构成骨架——`find_candidates`（找候选笔记）、`save_note`（原子写 + 写前 `.bak`）、`list_recent`（列最近）。LLM 只做整合判断（并入既有 / 新建 + 去重总结体系化）。**模型只选工具与参数，执行永远是代码**——这是防 Hermes 式飘的保证。〔ADR-0003〕
-- **存储**：一个文件夹，一条笔记一个 markdown 文件（+ `assets/` 放附件）。可 grep / git / 可移植。〔Q10〕
-- **笔记 schema**（front-matter 只留整合与检索真用得上的少数字段，正文由 LLM 结构化、不强制模板）：
+- **存储**：一个笔记根文件夹，**一条笔记 = 一个子目录**（目录名即稳定 id；内含 `note.md` 主文档 + 自由资产文件，工具只读写 note.md）。可 grep / git / 可移植。〔Q10；2026-08-20 依 ADR-0006 修订——原"一条笔记一个 markdown 文件（+ `assets/` 放附件）"是对 grill 原意"用文件夹来存"的误读〕
+- **笔记 schema**（front-matter 只留整合与检索真用得上的少数字段，正文由 LLM 结构化、不强制模板；`summary` 为 spec 0002 条目 3 增）：
   ```yaml
   ---
   title: <string>
@@ -57,6 +57,7 @@ feature: note-integration-skill
   status: spark | active | dormant | done
   updated_at: <ISO8601>
   source: <可选，材料来源>
+  summary: <可选，≤200 字符，LLM 维护的摘要；recent-view 优先展示>
   ---
   <正文：自由 markdown，由 LLM 整合为连贯结构>
   ```
@@ -91,7 +92,7 @@ feature: note-integration-skill
 
 ## Further Notes
 
-- **可复用资产**（不从零起）：MindArchive 的 `suggest_links(new, all)` / `analyze_conversation`（聊天→结构化捕获）签名——当年是桩，这次填实；zen 的"写前 `.bak`"习惯、运行时后端切换抽象。**不复用**：扁平孤儿存储、把核心 LLM 砍成桩留以后。
+- **可复用资产**（不从零起）：MindArchive 的 `analyze_conversation`（聊天→结构化捕获）签名——当年是桩，这次填实；zen 的"写前 `.bak`"习惯、运行时后端切换抽象。**不复用**：扁平孤儿存储、把核心 LLM 砍成桩留以后。`suggest_links(new, all)` 已退役（spec 0002 条目 10：find_candidates + 并入/新建二分已覆盖其意图）。
 - **护栏溯源**：每个"刻意不做"都对应一个过往死因——被动存储(Obsidian)、纯提示词维护(Hermes)、前端美化扩张(zen)、手填表单+桩化核心(MindArchive)。
 - **项目名 `mytool` 是占位**（在 `project.config.json`），等核心循环证明有价值再改名。
 - **构建顺序原则**：先建核心整合循环（demos 当年桩掉的那个），其余全延后。第一刀 = 最薄循环（捕获 → 整合进一条笔记 → 读档）。

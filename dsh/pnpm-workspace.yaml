@@ -1,0 +1,3 @@
+# esbuild 是 vitest 的传递依赖,需要允许其构建脚本(pnpm 生成模板后填值)。
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,9 @@
+# 开发循环 overlay:以绝对路径从源码装载插件(经 tsx,无需构建)。
+# 裸包名(@deepseek-ai/dsh-tools 等)靠 package.json 的 link: 依赖解析到 harness 源码树——
+# 与宿主加载的是同一物理模块(realpath 相同,模块缓存单实例)。
+# notesDir 指向草稿目录:冒烟不污染真实 notes/。
+- insert:
+    - id: mytool-notes
+      name: '/Users/zhm20001/projects/mytool/dsh/src/index.ts'
+      config:
+        notesDir: /Users/zhm20001/projects/mytool/.scratch/dsh-port/notes-smoke
