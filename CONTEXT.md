@@ -24,3 +24,7 @@ LLM 的核心能力：把新材料并进既有笔记时去重、总结、体系�
 
 **重复建档 (Duplicate)**:
 该并入既有笔记却新建、或往笔记里塞重复材料的状态。本工具要消灭的病灶。
+
+**看板 (Notes Dashboard)**:
+沉淀引擎的人类读档界面：以最近更新为序、summary 优先地总览全部笔记（stale 标记、done 折叠）。只读——存档与整合仍走模型侧。与 dsh 自身的 harness 总览（dashboard）无关，分属两个项目。
+_Avoid_: dashboard(混指 harness 总览时)、笔记列表
