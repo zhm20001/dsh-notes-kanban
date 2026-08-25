@@ -21,18 +21,6 @@ importers:
       '@deepseek-ai/cordis':
         specifier: link:/Users/zhm20001/deepseek-harness/vendor/cordis
         version: link:../../../deepseek-harness/vendor/cordis
-      '@deepseek-ai/dsh-client-runtime':
-        specifier: link:/Users/zhm20001/deepseek-harness/packages/client/runtime
-        version: link:../../../deepseek-harness/packages/client/runtime
-      '@deepseek-ai/dsh-client-ui-primitives':
-        specifier: link:/Users/zhm20001/deepseek-harness/packages/client/ui-primitives
-        version: link:../../../deepseek-harness/packages/client/ui-primitives
-      '@deepseek-ai/dsh-client-ui-sidebar':
-        specifier: link:/Users/zhm20001/deepseek-harness/packages/client/ui-sidebar
-        version: link:../../../deepseek-harness/packages/client/ui-sidebar
-      '@deepseek-ai/dsh-client-ui-slots':
-        specifier: link:/Users/zhm20001/deepseek-harness/packages/client/ui-slots
-        version: link:../../../deepseek-harness/packages/client/ui-slots
       '@deepseek-ai/dsh-credentials-local':
         specifier: link:/Users/zhm20001/deepseek-harness/packages/credentials/credentials-local
         version: link:../../../deepseek-harness/packages/credentials/credentials-local
@@ -57,12 +45,6 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
-      '@types/react':
-        specifier: link:/Users/zhm20001/deepseek-harness/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react
-        version: link:../../../deepseek-harness/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react
-      react:
-        specifier: link:/Users/zhm20001/deepseek-harness/node_modules/.pnpm/react@18.3.1/node_modules/react
-        version: link:../../../deepseek-harness/node_modules/.pnpm/react@18.3.1/node_modules/react
       typescript:
         specifier: ^5.9.0
         version: 5.9.3

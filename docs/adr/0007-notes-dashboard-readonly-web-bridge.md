@@ -1,11 +1,16 @@
 ---
 status: accepted
 date: 2026-08-24
+updated: 2026-08-25
 ---
 
 # 看板：只读人类读档界面 + webServer JSON 桥
 
-看板（CONTEXT.md：沉淀引擎的人类读档界面）作为 `mytool-dsh-notes` 的浏览器半边落地：`sidebar.footer.action` 入口按钮 + Modal 弹窗，数据经 host 侧 `ctx.webServer` 的同源 JSON 路由（`GET /mytool/notes` 列表、`GET /mytool/notes/:id` 详情）获取。看板**只读**——存档与整合仍走模型侧工具（ADR 0003 分工的延伸），列表语义完全复用 `listRecent`（流程D）。
+看板（CONTEXT.md：沉淀引擎的人类读档界面）作为 `mytool-dsh-notes` 的浏览器半边落地：`sidebar.footer.action` 入口链接 + **独立页面**（新标签页打开 `/mytool/notes/page`，自包含 HTML，形态对齐 dsh-diary），数据经 host 侧 `ctx.webServer` 的同源 JSON 路由（`GET /mytool/notes` 列表、`GET /mytool/notes/:id` 详情）获取。看板**只读**——存档与整合仍走模型侧工具（ADR 0003 分工的延伸），列表语义完全复用 `listRecent`（流程D）。
+
+## 修订记录
+
+- **2026-08-25（v0.3）：入口形态 Modal → 独立页面**。初版（v0.2）是 React Modal 弹窗；用户反馈弹窗太小、笔记显示不全、排版局促。改为 diary 式独立页：host 直接吐自包含 HTML（零构建 vanilla JS），client 半边只剩一个新标签页链接。连带退役了 tsc→CJS 转换构建链（含其 jsx 别名隐患——v0.2 集成期踩过：别名方向反导致渲染期静默崩溃，被 slot error boundary 吞掉）。JSON API 不变；只读边界不变。
 
 ## Considered Options
 
@@ -16,6 +21,7 @@ date: 2026-08-24
 
 ## Consequences
 
-- 浏览器 bundle 只允许 require 平台模块表内的外部件（react、cordis、ui-primitives、ui-slots、runtime/client 豁免）；因此 client 半边是**单文件 tsc 构建**（CJS + 手工包 loader 工厂壳），不引入 tsdown/bundler 依赖。
-- 列表的展示整形（done 折叠、排序）在 host 路由完成，浏览器半边保持哑渲染——整形逻辑因此可被 vitest 契约测试覆盖。
+- 浏览器 bundle 只 require 平台模块表词（react、ui-primitives——client 半边 v0.3 起是**预构建单文件** `src/client.js`，无 JSX、无构建链，产物形态对齐 dsh-diary）。
+- 看板**页面**本体由 host 渲染（`src/web/page.ts` 的自包含 HTML 字符串，视觉基调取自用户 course.css：纸面米白/衬线/砖红强调）——页面逻辑随 host 走 vitest 契约测试，改页面需重启 `dsh web`。
+- 列表的展示整形（done 折叠、排序）在 host 路由完成，页面保持哑渲染——整形逻辑因此可被 vitest 契约测试覆盖。
 - 看板与 dsh 自身的 harness 总览是两个项目、互不相交（用户裁决，2026-08-24）。

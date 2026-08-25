@@ -1,32 +1,31 @@
 {
   "name": "mytool-dsh-notes",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "mytool 沉淀引擎的 dsh 插件：ctx.notes 服务 + note_* 工具（ADR-0005）",
+  "description": "mytool 沉淀引擎的 dsh 插件：ctx.notes 服务 + note_* 工具 + 笔记看板独立页（ADR-0005/0007）",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "exports": {
     ".": { "types": "./lib/index.d.ts", "default": "./lib/index.js" },
-    "./client": { "types": "./lib/client/index.d.ts", "default": "./lib/client/index.js" },
+    "./client": "./src/client.js",
     "./package.json": "./package.json"
   },
-  "files": ["lib", "cordis.patch.yml"],
+  "files": ["lib", "cordis.patch.yml", "src/client.js"],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
       "platform": "web",
-      "inject": ["@deepseek-ai/dsh-client-runtime"]
+      "inject": ["@deepseek-ai/dsh-client-ui-sidebar"]
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/build-client.mjs",
-    "build:client": "node scripts/build-client.mjs",
+    "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.client.json --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@deepseek-ai/dsh-llm": "link:/Users/zhm20001/deepseek-harness/packages/llm/llm",
@@ -35,10 +34,6 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:/Users/zhm20001/deepseek-harness/vendor/cordis",
-    "@deepseek-ai/dsh-client-runtime": "link:/Users/zhm20001/deepseek-harness/packages/client/runtime",
-    "@deepseek-ai/dsh-client-ui-primitives": "link:/Users/zhm20001/deepseek-harness/packages/client/ui-primitives",
-    "@deepseek-ai/dsh-client-ui-slots": "link:/Users/zhm20001/deepseek-harness/packages/client/ui-slots",
-    "@deepseek-ai/dsh-client-ui-sidebar": "link:/Users/zhm20001/deepseek-harness/packages/client/ui-sidebar",
     "@deepseek-ai/dsh-credentials-local": "link:/Users/zhm20001/deepseek-harness/packages/credentials/credentials-local",
     "@deepseek-ai/dsh-host-webserver": "link:/Users/zhm20001/deepseek-harness/packages/host/webserver",
     "@deepseek-ai/dsh-llm-deepseek": "link:/Users/zhm20001/deepseek-harness/packages/llm/llm-deepseek",
@@ -47,8 +42,6 @@
     "@deepseek-ai/dsh-tools": "link:/Users/zhm20001/deepseek-harness/packages/core/tools",
     "@deepseek-ai/schemastery": "link:/Users/zhm20001/deepseek-harness/vendor/schemastery",
     "@types/node": "^24.0.0",
-    "@types/react": "link:/Users/zhm20001/deepseek-harness/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react",
-    "react": "link:/Users/zhm20001/deepseek-harness/node_modules/.pnpm/react@18.3.1/node_modules/react",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   }

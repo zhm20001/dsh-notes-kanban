@@ -12,6 +12,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "test"],
-  "exclude": ["src/client"]
+  "include": ["src", "test"]
 }

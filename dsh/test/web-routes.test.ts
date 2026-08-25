@@ -11,7 +11,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { listRecent } from '../src/core/recent.ts'
 import { readNote } from '../src/core/save.ts'
 import type { NotesService } from '../src/service.ts'
-import { dashboardList, NOTES_ROUTE, noteDetail, registerNotesRoutes } from '../src/web/routes.ts'
+import { dashboardList, NOTES_PAGE_ROUTE, NOTES_ROUTE, noteDetail, registerNotesRoutes } from '../src/web/routes.ts'
+import { renderNotesPage } from '../src/web/page.ts'
 import { makeNotesDir, writeNote, type NoteDir } from './helpers.ts'
 
 interface Captured {
@@ -41,9 +42,10 @@ function fakeReq(method: string, url: string): IncomingMessage {
 /** 真实 core + 最小 ctx/service 替身；返回捕获的响应。 */
 function drive(dir: NoteDir, method: string, url: string): Captured {
   const { res, captured } = fakeRes()
+  const routes: { kind: 'exact' | 'prefix'; path: string; handler: (req: IncomingMessage, res: ServerResponse) => void }[] = []
   const ctx = {
-    webServer: { register: (route: { handler: (req: IncomingMessage, res: ServerResponse) => void }) => {
-      route.handler(fakeReq(method, url), res)
+    webServer: { register: (route: (typeof routes)[number]) => {
+      routes.push(route)
       return () => {}
     } },
   } as unknown as Context
@@ -52,6 +54,14 @@ function drive(dir: NoteDir, method: string, url: string): Captured {
     read: (id: string) => readNote(dir.dir, id),
   } as unknown as NotesService
   registerNotesRoutes(ctx, service)
+  // 复刻宿主调度：exact 命中优先，否则最长前缀（宿主 webServer 同语义）。
+  const pathname = url.split('?')[0]
+  const exact = routes.find((r) => r.kind === 'exact' && r.path === pathname)
+  const match = exact ?? routes
+    .filter((r) => r.kind === 'prefix' && (pathname === r.path || pathname.startsWith(`${r.path}/`)))
+    .sort((a, b) => b.path.length - a.path.length)[0]
+  if (match === undefined) throw new Error(`test webserver: no route for ${pathname}`)
+  match.handler(fakeReq(method, url), res)
   return captured
 }
 
@@ -127,5 +137,34 @@ describe('GET 路由', () => {
   it('POST → 405', () => {
     dir = makeNotesDir()
     expect(drive(dir, 'POST', NOTES_ROUTE).status).toBe(405)
+  })
+})
+
+describe('GET 页面路由', () => {
+  it(`GET ${NOTES_PAGE_ROUTE} → 200 + text/html + no-store，含看板骨架`, () => {
+    const captured = drive(makeNotesDir(), 'GET', NOTES_PAGE_ROUTE)
+    expect(captured.status).toBe(200)
+    expect(captured.headers['content-type']).toBe('text/html; charset=utf-8')
+    expect(captured.headers['cache-control']).toBe('no-store')
+    for (const marker of ['笔记看板', 'id="refresh"', '/mytool/notes']) {
+      expect(captured.body).toContain(marker)
+    }
+  })
+
+  it('HEAD 页面 → 200 空 body', () => {
+    const captured = drive(makeNotesDir(), 'HEAD', NOTES_PAGE_ROUTE)
+    expect(captured.status).toBe(200)
+    expect(captured.body).toBe('')
+  })
+
+  it('POST 页面 → 405', () => {
+    expect(drive(makeNotesDir(), 'POST', NOTES_PAGE_ROUTE).status).toBe(405)
+  })
+
+  it('renderNotesPage 输出自包含 HTML（无外部资源引用）', () => {
+    const page = renderNotesPage()
+    expect(page).toMatch(/^<!doctype html>/i)
+    expect(page).not.toContain('<link')
+    expect(page).not.toContain('src="http')
   })
 })

@@ -1,10 +1,10 @@
 /**
- * 看板的 host 半边 —— 同源 JSON 路由（ADR 0007）。
+ * 看板的 host 半边 —— 独立页面 + 同源 JSON 路由（ADR 0007）。
  *
  * 浏览器端不在运行时发现 host 侧新 Service（Remote 装配是 dsh 上游编译期固定的
  * 集合），树外插件取得浏览器可见数据的正规通道就是 webServer 路由。本模块只做
- * 读：列表（listRecent 语义，done 折叠）与详情（note.md 解析结果）。写路径
- * （存档/整合/恢复）永远走模型侧工具，看板不暴露。
+ * 读：页面（自包含 HTML）、列表（listRecent 语义，done 折叠）与详情（note.md
+ * 解析结果）。写路径（存档/整合/恢复）永远走模型侧工具，看板不暴露。
  *
  * @module mytool-dsh-notes/web/routes
  */
@@ -14,6 +14,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { NoteRecentRow } from '../core/recent.ts'
 import type { NoteReadResult } from '../core/save.ts'
 import type { NotesService } from '../service.ts'
+import { NOTES_PAGE_ROUTE, renderNotesPage } from './page.ts'
+
+export { NOTES_PAGE_ROUTE }
 
 /** 路由命名空间：`/mytool/notes`（列表）与 `/mytool/notes/<id>`（详情）。 */
 export const NOTES_ROUTE = '/mytool/notes'
@@ -69,15 +72,37 @@ export function noteDetail(r: NoteReadResult): NoteDetailPayload {
 }
 
 /**
- * 注册看板路由（prefix 一条：裸路径 = 列表，子路径 = 详情）。
+ * 注册看板路由：exact 页面（/mytool/notes/page，优先于 prefix）+ prefix JSON
+ * （裸路径 = 列表，子路径 = 详情）。
  * @returns 注销器（ctx.effect 用）。
  */
 export function registerNotesRoutes(ctx: Context, service: NotesService): () => void {
-  return ctx.webServer.register({
+  const disposePage = ctx.webServer.register({
+    kind: 'exact',
+    path: NOTES_PAGE_ROUTE,
+    handler: (req, res) => { handlePageRequest(req, res) },
+  })
+  const disposeJson = ctx.webServer.register({
     kind: 'prefix',
     path: NOTES_ROUTE,
     handler: (req, res) => { handleNotesRequest(service, req, res) },
   })
+  return () => { disposeJson(); disposePage() }
+}
+
+function handlePageRequest(req: IncomingMessage, res: ServerResponse): void {
+  const method = req.method ?? 'GET'
+  if (method !== 'GET' && method !== 'HEAD') {
+    sendJson(res, method, 405, { error: 'method not allowed' })
+    return
+  }
+  const body = renderNotesPage()
+  res.writeHead(200, {
+    'content-type': 'text/html; charset=utf-8',
+    'content-length': String(Buffer.byteLength(body)),
+    'cache-control': 'no-store',
+  })
+  res.end(method === 'HEAD' ? undefined : body)
 }
 
 function handleNotesRequest(service: NotesService, req: IncomingMessage, res: ServerResponse): void {
