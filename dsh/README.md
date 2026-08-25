@@ -18,6 +18,7 @@ front-matter：`title` / `tags[]`（≤6） / `status`(spark·active·dormant·d
 
 - **只读**：存档与整合仍走模型侧（`note_*` 工具）；看板不改任何笔记。
 - **形态（v0.3，ADR 0007 修订）**：diary 式独立页面——host 吐自包含 HTML（`src/web/page.ts`，零构建 vanilla JS，视觉基调取自用户 course.css：纸面米白、衬线正文、砖红强调）；client 半边是预构建单文件 `src/client.js`（仅一个侧栏新标签页链接，无 JSX 无构建链）。
+- **排列可选（v0.3.1）**：页头「列表 / 卡片」切换——卡片为二维网格（56rem 行宽下每行 4 张，展开的卡跨整行），偏好存 localStorage，默认卡片。
 - **数据通道**：页面 fetch 同源 JSON（列表/详情）；展示整形（path 剥离、done 折叠、stale/age 计算）全在 host 路由。路线决策与 Typert Remote 否决理由见 `../docs/adr/0007`。
 - **改代码后**：改 client.js / 页面外的 host 代码 → `pnpm build` + 重启 `dsh web`（页面本体是 host 渲染的 HTML 字符串，也走这里）；仅改 `src/client.js` → 刷新主页面即可（bundle 路由 no-store 按请求读盘）。
 - 手测步骤见 `../docs/manual-testing-guide.md`。

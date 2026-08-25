@@ -47,6 +47,13 @@ const PAGE = `<!doctype html>
     border: none; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer;
   }
   #refresh:disabled { opacity: .55; cursor: default; }
+  .views { display: inline-flex; gap: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .vbtn {
+    font: inherit; font-size: .78rem; padding: .18rem .8rem; border: none;
+    background: #fff; color: var(--muted); cursor: pointer;
+  }
+  .vbtn + .vbtn { border-left: 1px solid var(--rule); }
+  .vbtn.on { background: var(--ink); color: var(--paper); }
   h2 { font-size: 1.3rem; margin: 2.2rem 0 0; border-bottom: 1px solid var(--rule); padding-bottom: .25rem; }
   article.note { border: 1px solid var(--rule); border-radius: 10px; background: var(--card); padding: .9rem 1.2rem; margin: 1rem 0; }
   .note-head {
@@ -83,6 +90,14 @@ const PAGE = `<!doctype html>
   details.done > summary { font-size: 1.3rem; border-bottom: 1px solid var(--rule); padding-bottom: .25rem; cursor: pointer; list-style: none; }
   details.done > summary::before { content: "▸ "; color: var(--muted); }
   details.done[open] > summary::before { content: "▾ "; }
+  /* 二维卡片排列：56rem 行宽下每行 4 张（minmax 180px）；展开的卡跨整行 */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .9rem; align-items: start; }
+  .card-grid > article.note { margin: 0; }
+  .card-grid .note-sum { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-grid .note-tags .kw:nth-child(n+4) { display: none; }
+  .card-grid article.note.open { grid-column: 1 / -1; }
+  .card-grid article.note.open .note-sum { display: block; -webkit-line-clamp: none; overflow: visible; }
+  .card-grid article.note.open .note-tags .kw:nth-child(n+4) { display: inline-block; }
   .empty { color: var(--muted); margin-top: 1rem; }
   .err { display: none; margin-top: 1rem; padding: .8rem 1rem; border-radius: 8px; background: var(--bad-bg); color: var(--bad); white-space: pre-wrap; font-size: .9rem; }
 </style>
@@ -93,6 +108,10 @@ const PAGE = `<!doctype html>
   <h1>笔记看板</h1>
   <div class="meta">
     <span id="meta">加载中…</span>
+    <div class="views" role="group" aria-label="排列方式">
+      <button class="vbtn" id="v-list" type="button">列表</button>
+      <button class="vbtn" id="v-card" type="button">卡片</button>
+    </div>
     <button id="refresh" type="button">刷新</button>
   </div>
 </header>
@@ -118,8 +137,32 @@ const PAGE = `<!doctype html>
   var doneBox = document.getElementById('done');
   var emptyBox = document.getElementById('empty');
   var errBox = document.getElementById('err');
+  var vList = document.getElementById('v-list');
+  var vCard = document.getElementById('v-card');
   var expanded = {};   // id -> true（刷新后保持展开）
   var details = {};    // id -> 已拉取的详情 payload
+  var mode = 'card';   // 'list' | 'card'，localStorage 持久化
+  try {
+    var saved = localStorage.getItem('notes-dash-view');
+    if (saved === 'list' || saved === 'card') mode = saved;
+  } catch (e) { /* localStorage 不可用时用默认值 */ }
+
+  function applyMode() {
+    var grid = mode === 'card';
+    activeBox.className = grid ? 'card-grid' : '';
+    doneBox.className = grid ? 'card-grid' : '';
+    vList.classList.toggle('on', !grid);
+    vCard.classList.toggle('on', grid);
+  }
+
+  function setMode(m) {
+    mode = m;
+    try { localStorage.setItem('notes-dash-view', m); } catch (e) { /* 忽略 */ }
+    applyMode();
+  }
+  vList.addEventListener('click', function () { setMode('list'); });
+  vCard.addEventListener('click', function () { setMode('card'); });
+  applyMode();
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -241,6 +284,7 @@ const PAGE = `<!doctype html>
   }
 
   function render(j) {
+    applyMode();
     meta.textContent = j.active.length + ' 篇在跟 · ' + j.done.length + ' 篇已完成 · 生成于 ' + j.generated_at;
     activeH.textContent = '在跟（' + j.active.length + '）';
     activeBox.innerHTML = j.active.map(entryHtml).join('');

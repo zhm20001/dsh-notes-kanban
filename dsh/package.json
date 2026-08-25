@@ -1,24 +1,33 @@
 {
   "name": "mytool-dsh-notes",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "mytool 沉淀引擎的 dsh 插件：ctx.notes 服务 + note_* 工具 + 笔记看板独立页（ADR-0005/0007）",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "exports": {
-    ".": { "types": "./lib/index.d.ts", "default": "./lib/index.js" },
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
     "./client": "./src/client.js",
     "./package.json": "./package.json"
   },
-  "files": ["lib", "cordis.patch.yml", "src/client.js"],
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "src/client.js"
+  ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
       "platform": "web",
-      "inject": ["@deepseek-ai/dsh-client-ui-sidebar"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
     }
   },
   "scripts": {
