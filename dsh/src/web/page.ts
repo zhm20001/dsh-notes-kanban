@@ -47,6 +47,11 @@ const PAGE = `<!doctype html>
     border: none; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer;
   }
   #refresh:disabled { opacity: .55; cursor: default; }
+  #q {
+    font: inherit; font-size: .82rem; padding: .25rem .7rem; width: 13rem;
+    border: 1px solid var(--rule); border-radius: 8px; background: #fff; color: var(--ink); outline: none;
+  }
+  #q:focus { border-color: var(--accent); }
   .views { display: inline-flex; gap: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
   .vbtn {
     font: inherit; font-size: .78rem; padding: .18rem .8rem; border: none;
@@ -145,6 +150,7 @@ const PAGE = `<!doctype html>
   </div>
   <div class="meta">
     <span id="meta">加载中…</span>
+    <input id="q" type="search" placeholder="搜索标题/标签/摘要…" autocomplete="off" aria-label="搜索笔记">
     <div class="views" role="group" aria-label="排列方式">
       <button class="vbtn" id="v-list" type="button">列表</button>
       <button class="vbtn" id="v-card" type="button">卡片</button>
@@ -160,6 +166,7 @@ const PAGE = `<!doctype html>
     <div id="done"></div>
   </details>
   <div class="empty" id="empty" style="display:none">还没有在跟的笔记。</div>
+  <div class="empty" id="nomatch" style="display:none">无匹配的笔记。</div>
   <div class="err" id="err"></div>
 </main>
 <dialog class="guide" id="guide" aria-labelledby="guide-title">
@@ -170,6 +177,7 @@ const PAGE = `<!doctype html>
     </div>
     <h2 id="guide-title">怎么用这套笔记系统？</h2>
     <p class="g-principle">第一原则：这块看板<b>只读</b>——它只负责让你「看见」所有笔记；一切写入（新建、并入、完结、回滚）都发生在 <b>dsh 对话</b>里。你对 dsh 说话，它替你落盘，且永不无声丢失。</p>
+    <p>懒人通道：在 dsh 输入框打 <code>/note + 内容</code>，客户端直接把文本转交笔记技能处理（不经模型猜测该不该用技能）。下面的话术则完全不用记命令，说了就能召回。</p>
 
     <h3>快速上手 · 对 dsh 说这些话</h3>
 
@@ -210,6 +218,7 @@ const PAGE = `<!doctype html>
 
     <h3>看板操作</h3>
     <ul>
+      <li><b>搜索</b>：页头搜索框按标题/标签/摘要/状态本地过滤（在跟与已完成都过滤，不发请求）；清空恢复全部。</li>
       <li><b>列表 / 卡片</b>：页头切换排列。卡片为二维网格（每行 4 张，信息密度更高），点开的卡跨整行；偏好会被记住。</li>
       <li><b>展开全文</b>：点笔记标题行，展开元信息与正文。</li>
       <li><b>刷新</b>：手动拉取最新数据（页面不自动轮询）。</li>
@@ -229,10 +238,13 @@ const PAGE = `<!doctype html>
   var doneBox = document.getElementById('done');
   var emptyBox = document.getElementById('empty');
   var errBox = document.getElementById('err');
+  var searchBox = document.getElementById('q');
+  var nomatchBox = document.getElementById('nomatch');
   var vList = document.getElementById('v-list');
   var vCard = document.getElementById('v-card');
   var expanded = {};   // id -> true（刷新后保持展开）
   var details = {};    // id -> 已拉取的详情 payload
+  var currentList = null;  // 最近一次渲染的列表（本地过滤用）
   var mode = 'card';   // 'list' | 'card'，localStorage 持久化
   try {
     var saved = localStorage.getItem('notes-dash-view');
@@ -384,8 +396,35 @@ const PAGE = `<!doctype html>
       .catch(function (e) { box.innerHTML = '<p class="loading">读取失败：' + esc(String(e.message || e)) + '</p>'; });
   }
 
+  // 本地搜索：只过滤列表数据里有的字段（标题/id/状态/标签/摘要/片段），零请求零落盘。
+  function applyFilter() {
+    if (currentList === null) return;
+    var q = searchBox.value.trim().toLowerCase();
+    function filterRows(box, rows) {
+      var arts = box.querySelectorAll('article.note');
+      var shown = 0;
+      rows.forEach(function (row, i) {
+        var hay = (row.title + ' ' + row.id + ' ' + row.status + ' ' + (row.tags || []).join(' ')
+          + ' ' + (row.summary || '') + ' ' + (row.snippet || '')).toLowerCase();
+        var hit = q === '' || hay.indexOf(q) !== -1;
+        if (arts[i] !== undefined) arts[i].style.display = hit ? '' : 'none';
+        if (hit) shown++;
+      });
+      return shown;
+    }
+    var totalA = currentList.active.length, totalD = currentList.done.length;
+    var shownA = filterRows(activeBox, currentList.active);
+    var shownD = doneWrap.style.display === 'none' ? 0 : filterRows(doneBox, currentList.done);
+    activeH.textContent = q === '' ? '在跟（' + totalA + '）' : '在跟（' + shownA + '/' + totalA + '）';
+    if (totalD > 0) doneH.textContent = q === '' ? '已完成（' + totalD + '）' : '已完成（' + shownD + '/' + totalD + '）';
+    nomatchBox.style.display = q !== '' && shownA === 0 && shownD === 0 ? '' : 'none';
+  }
+  searchBox.addEventListener('input', applyFilter);
+  searchBox.addEventListener('search', applyFilter);  // type=search 原生清除按钮（WebKit 只发 search）
+
   function render(j) {
     applyMode();
+    currentList = j;
     meta.textContent = j.active.length + ' 篇在跟 · ' + j.done.length + ' 篇已完成 · 生成于 ' + j.generated_at;
     activeH.textContent = '在跟（' + j.active.length + '）';
     activeBox.innerHTML = j.active.map(entryHtml).join('');
@@ -415,6 +454,7 @@ const PAGE = `<!doctype html>
       });
     });
     Object.keys(expanded).forEach(function (id) { loadDetail({ id: id }); });
+    applyFilter();
   }
 
   function fetchList() {

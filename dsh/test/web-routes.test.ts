@@ -146,7 +146,7 @@ describe('GET 页面路由', () => {
     expect(captured.status).toBe(200)
     expect(captured.headers['content-type']).toBe('text/html; charset=utf-8')
     expect(captured.headers['cache-control']).toBe('no-store')
-    for (const marker of ['笔记看板', 'id="refresh"', 'id="v-card"', 'card-grid', 'id="help-btn"', '使用指南', 'id="guide"', '/mytool/notes']) {
+    for (const marker of ['笔记看板', 'id="refresh"', 'id="v-card"', 'card-grid', 'id="help-btn"', '使用指南', 'id="guide"', 'id="q"', '搜索标题', '/mytool/notes']) {
       expect(captured.body).toContain(marker)
     }
   })

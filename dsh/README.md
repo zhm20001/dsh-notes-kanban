@@ -10,7 +10,8 @@ mytool「沉淀引擎」的 dsh 插件（ADR-0005）：确定性笔记存储 + �
 | 工具 | `note_save` `note_read` `note_find_candidates`（strong/weak 分级） `note_integrate` `note_list_recent` `note_restore` |
 | 整合 | `note_integrate` 管线：版本化模板 → `ctx.llm` 直调（temp 0）→ 严格 JSON 契约校验 → 原子落盘（spec 0002） |
 | skill | `note-integration` runtime skill（组合里有 skills 服务时自动注册） |
-| 看板 | host：`ctx.webServer` 只读 JSON（`GET /mytool/notes` 列表、`GET /mytool/notes/:id` 详情）+ 自包含看板页（`GET /mytool/notes/page`）；client：侧栏底部「笔记」链接 → 新标签页打开看板（在跟列表、summary 优先、stale 警示、done 折叠、展开按需拉详情、手动刷新） |
+| 命令 | `/note <文本>` 主动直达（组合里有 commands 服务时自动注册）：客户端解析行首 `/note`，handler 经 `agent.followup` 以 plugin 来源消息点名技能转交处理——混合呼出的主动半边，被动半边（模型读技能目录自判）不受影响。呼出策略与 token 开销账见 `../docs/adr/0008` |
+| 看板 | host：`ctx.webServer` 只读 JSON（`GET /mytool/notes` 列表、`GET /mytool/notes/:id` 详情）+ 自包含看板页（`GET /mytool/notes/page`）；client：侧栏底部「笔记」链接 → 新标签页打开看板（在跟列表、summary 优先、stale 警示、done 折叠、展开按需拉详情、本地搜索过滤、列表/卡片排列、`?` 使用指南） |
 
 front-matter：`title` / `tags[]`（≤6） / `status`(spark·active·dormant·done) / `updated_at` / `source`? / `summary`?（≤200，integrate 维护）。
 

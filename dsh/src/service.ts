@@ -16,6 +16,7 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type {} from '@deepseek-ai/dsh-commands'
 import z from '@deepseek-ai/schemastery'
 import { findCandidates, FIND_DEFAULT_LIMIT, type NoteCandidate } from './core/find.ts'
 import { listRecent, RECENT_DEFAULT_LIMIT, type ListRecentOptions, type NoteRecentRow } from './core/recent.ts'
@@ -23,6 +24,7 @@ import { restoreNote, type NoteRestoreResult } from './core/restore.ts'
 import { readNote, readNoteRaw, saveNote, type NoteReadResult, type NoteSaveInput, type NoteSaveResult } from './core/save.ts'
 import { runIntegration, type IntegrationRequest, type IntegrationResult, type IntegrateLlmConfig } from './integrate/pipeline.ts'
 import { registerNotesSkill } from './skill.ts'
+import { registerNoteCommand } from './command.ts'
 import { registerNotesRoutes } from './web/routes.ts'
 import { registerNoteFindCandidatesTool } from './tools/note-find-candidates.ts'
 import { registerNoteIntegrateTool } from './tools/note-integrate.ts'
@@ -71,6 +73,10 @@ export class NotesService extends Service {
     // skills 可选：组合里没有它（如 headless）时插件照常工作，出现时补注册 skill。
     ctx.inject(['skills'], (sctx) => {
       sctx.effect(() => registerNotesSkill(sctx), 'notes.skill(note-integration)')
+    })
+    // commands 可选：交互组合里出现时挂 /note 主动直达（混合呼出的主动半边）。
+    ctx.inject(['commands'], (cctx) => {
+      cctx.effect(() => registerNoteCommand(cctx), 'notes.command(/note)')
     })
     // webServer 可选（ADR 0007）：web 组合里出现时挂看板 JSON 路由，headless 不受影响。
     ctx.inject(['webServer'], (wctx) => {

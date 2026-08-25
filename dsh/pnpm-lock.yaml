@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@deepseek-ai/dsh-commands':
+        specifier: link:/Users/zhm20001/deepseek-harness/packages/interaction/commands
+        version: link:../../../deepseek-harness/packages/interaction/commands
       '@deepseek-ai/dsh-llm':
         specifier: link:/Users/zhm20001/deepseek-harness/packages/llm/llm
         version: link:../../../deepseek-harness/packages/llm/llm
