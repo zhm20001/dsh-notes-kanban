@@ -55,5 +55,6 @@
     "typescript": "^5.9.0",
     "vitest": "^3.2.0",
     "@deepseek-ai/dsh-commands": "link:/Users/zhm20001/deepseek-harness/packages/interaction/commands"
-  }
+  },
+  "author": "zhm20001 <phantiverse@gmail.com>"
 }
