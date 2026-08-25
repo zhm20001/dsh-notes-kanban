@@ -54,6 +54,40 @@ const PAGE = `<!doctype html>
   }
   .vbtn + .vbtn { border-left: 1px solid var(--rule); }
   .vbtn.on { background: var(--ink); color: var(--paper); }
+  .title-row { display: flex; align-items: center; gap: .55rem; }
+  #help-btn {
+    width: 1.55rem; height: 1.55rem; border-radius: 50%; border: 1px solid var(--rule);
+    background: var(--soft); color: var(--muted); font: inherit; font-size: .95rem; line-height: 1;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; flex: none;
+  }
+  #help-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  dialog.guide {
+    border: 1px solid var(--rule); border-radius: 12px; background: var(--paper); color: var(--ink);
+    padding: 0; width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 4rem); font: inherit;
+  }
+  dialog.guide::backdrop { background: rgba(26, 26, 26, .35); }
+  .g-body { padding: 1.5rem 1.8rem 1.8rem; overflow-y: auto; max-height: calc(100vh - 4rem); }
+  .g-head { display: flex; align-items: baseline; gap: .6rem; border-bottom: 2px solid var(--ink); padding-bottom: .7rem; }
+  .g-close {
+    margin-left: auto; font: inherit; font-size: 1.15rem; line-height: 1; border: none; background: none;
+    color: var(--muted); cursor: pointer; padding: .1rem .45rem; border-radius: 6px;
+  }
+  .g-close:hover { color: var(--accent); }
+  .g-principle {
+    background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+    padding: .6rem .9rem; font-size: .92rem; margin: 1rem 0 .4rem;
+  }
+  .guide h2 { font-size: 1.35rem; margin: .2rem 0 0; border-bottom: none; padding-bottom: 0; }
+  .guide h3 { font-size: 1.05rem; margin: 1.3rem 0 .4rem; }
+  .guide p, .guide li { font-size: .93rem; margin: .35rem 0; }
+  .guide ul { padding-left: 1.3rem; margin: .4rem 0; }
+  .guide .act { font-weight: 600; margin-top: .8rem; }
+  .say { background: var(--code-bg); border-radius: 8px; padding: .45rem .8rem .55rem; font-size: .9rem; margin: .3rem 0 .5rem; }
+  .say::before { content: "对 dsh 说："; display: block; color: var(--muted); font-size: .76rem; margin-bottom: .1rem; }
+  .guide code { font-family: "SF Mono", Menlo, Consolas, "PingFang SC", monospace; font-size: .86em; background: var(--code-bg); padding: .08em .3em; border-radius: 3px; }
+  .guide details { border: 1px dashed var(--rule); border-radius: 8px; padding: .5rem .85rem .6rem; margin: .5rem 0; }
+  .guide details > summary { cursor: pointer; font-weight: 600; font-size: .95rem; }
+  .guide details[open] > summary { margin-bottom: .25rem; }
   h2 { font-size: 1.3rem; margin: 2.2rem 0 0; border-bottom: 1px solid var(--rule); padding-bottom: .25rem; }
   article.note { border: 1px solid var(--rule); border-radius: 10px; background: var(--card); padding: .9rem 1.2rem; margin: 1rem 0; }
   .note-head {
@@ -105,7 +139,10 @@ const PAGE = `<!doctype html>
 <body>
 <header class="dash">
   <div class="kicker">沉淀引擎 · 人类读档</div>
-  <h1>笔记看板</h1>
+  <div class="title-row">
+    <h1>笔记看板</h1>
+    <button id="help-btn" type="button" aria-label="使用指南" title="使用指南">?</button>
+  </div>
   <div class="meta">
     <span id="meta">加载中…</span>
     <div class="views" role="group" aria-label="排列方式">
@@ -125,6 +162,61 @@ const PAGE = `<!doctype html>
   <div class="empty" id="empty" style="display:none">还没有在跟的笔记。</div>
   <div class="err" id="err"></div>
 </main>
+<dialog class="guide" id="guide" aria-labelledby="guide-title">
+  <div class="g-body">
+    <div class="g-head">
+      <span class="kicker">沉淀引擎 · 使用指南</span>
+      <button class="g-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <h2 id="guide-title">怎么用这套笔记系统？</h2>
+    <p class="g-principle">第一原则：这块看板<b>只读</b>——它只负责让你「看见」所有笔记；一切写入（新建、并入、完结、回滚）都发生在 <b>dsh 对话</b>里。你对 dsh 说话，它替你落盘，且永不无声丢失。</p>
+
+    <h3>快速上手 · 对 dsh 说这些话</h3>
+
+    <p class="act">存一条新想法（增）</p>
+    <div class="say">存个笔记：想学做饭，先搞懂锅温、油温的底层原理。</div>
+    <p>dsh 会拟好标题与标签落盘，读回给你看，并告诉你这条笔记的 id。灵感就从这个动作开始——它是「还没长大的笔记」。</p>
+
+    <p class="act">看看我在跟什么（查）</p>
+    <div class="say">我最近在搞什么？</div>
+    <div class="say">帮我读读关于做饭的那条笔记。</div>
+    <p>前者列出最近在跟的笔记（久未触碰的会标 ⚠ 遗忘风险）；后者按关键词召回并读回全文，不需要记 id。</p>
+
+    <p class="act">喂新材料（改 · 整合）</p>
+    <div class="say">把这段并进做饭笔记：今天学到肉下锅前要回温，避免外糊内冷……</div>
+    <p>不是把文字贴到文末，而是<b>整合</b>：去重、总结、体系化地并进正文。如果 dsh 拿不准该并入哪条，它会先把候选摆给你看再动手。</p>
+
+    <p class="act">完结与反悔</p>
+    <div class="say">做饭这条先搁置。 ／ 这条完成归档吧。 ／ 撤销刚才那次整合。</div>
+    <p>状态随口流转：灵感 spark → 在跟 active → 搁置 dormant → 完结 done（看板自动折叠）。整合错了就说「撤销」，自动从备份回滚上一版。</p>
+
+    <h3>深入一点</h3>
+    <details>
+      <summary>笔记的一生：四种状态</summary>
+      <p><b>spark</b>（灵感幼体）→ <b>active</b>（在跟）→ <b>dormant</b>（搁置）→ <b>done</b>（完结）。状态由你在对话里随口流转，看板按它分组与折叠。灵感长大后<b>仍是同一条笔记</b>，不会另建。</p>
+    </details>
+    <details>
+      <summary>为什么说「永不丢失」？</summary>
+      <p>每次整合前，旧版全文自动存进同目录的 <code>note.md.bak</code>；说「回滚 XX 笔记」即可恢复上一版，再回滚一次就撤销本次回滚。本引擎<b>没有删除</b>——完结（done）不是丢弃，历史永远在。</p>
+    </details>
+    <details>
+      <summary>整合管线在背后做了什么</summary>
+      <p>dsh 先用关键词找候选既有笔记（<code>note_find_candidates</code>），读全文判定「并入既有」还是「新建」，拿不准会先问你；然后重写正文（<code>note_integrate</code>）：新材料要点融入、无逐字重复、矛盾不静默覆盖（双观点保留并标记），最后刷新 updated_at、留 .bak。</p>
+    </details>
+    <details>
+      <summary>⚠ 遗忘风险是什么？</summary>
+      <p>一条在跟笔记超过设定天数没有新材料，看板就会标 ⚠，提醒你「要么喂它、要么完结它、要么先搁置」——护住长期主义，不让笔记变成坟场。</p>
+    </details>
+
+    <h3>看板操作</h3>
+    <ul>
+      <li><b>列表 / 卡片</b>：页头切换排列。卡片为二维网格（每行 4 张，信息密度更高），点开的卡跨整行；偏好会被记住。</li>
+      <li><b>展开全文</b>：点笔记标题行，展开元信息与正文。</li>
+      <li><b>刷新</b>：手动拉取最新数据（页面不自动轮询）。</li>
+      <li>看板永远只读——想改什么，回 dsh 对话说。</li>
+    </ul>
+  </div>
+</dialog>
 <script>
 (function () {
   'use strict';
@@ -163,6 +255,15 @@ const PAGE = `<!doctype html>
   vList.addEventListener('click', function () { setMode('list'); });
   vCard.addEventListener('click', function () { setMode('card'); });
   applyMode();
+
+  var helpBtn = document.getElementById('help-btn');
+  var guide = document.getElementById('guide');
+  var guideOpenedAt = 0;  // 打开后 250ms 内忽略遮罩点击（防合成点击穿透即刻关窗）
+  helpBtn.addEventListener('click', function () { guideOpenedAt = Date.now(); guide.showModal(); });
+  guide.querySelector('.g-close').addEventListener('click', function () { guide.close(); });
+  guide.addEventListener('click', function (ev) {
+    if (ev.target === guide && Date.now() - guideOpenedAt > 250) guide.close();
+  });
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {

@@ -1,6 +1,6 @@
 {
   "name": "mytool-dsh-notes",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "type": "module",
   "description": "mytool 沉淀引擎的 dsh 插件：ctx.notes 服务 + note_* 工具 + 笔记看板独立页（ADR-0005/0007）",
